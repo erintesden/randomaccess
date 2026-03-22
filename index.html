@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>Random Access</title>
 <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#0a0a0f">
+<meta name="theme-color" content="#151922">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="apple-touch-icon" href="icon-192.png">
@@ -15,8 +15,8 @@
 /* === RESET & VARIABLES === */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
-  --bg: #0a0a0f; --surface: #141420; --surface2: #1c1c2e; --surface3: #25253a;
-  --text: #e8e6f0; --text2: #9896a8; --text3: #5c5a6e;
+  --bg: #151922; --surface: #1c2130; --surface2: #232a3b; --surface3: #2e3650;
+  --text: #f0f2f8; --text2: #a8b0c4; --text3: #6b7590;
   --accent1: #ff3c6f; --accent2: #00e5a0; --accent3: #7c5cfc; --accent4: #ffb938;
   --danger: #ff4757; --radius: 14px; --radius-sm: 8px;
   --font-display: 'Anybody', sans-serif; --font-mono: 'Space Mono', monospace;
@@ -533,20 +533,20 @@ window.deleteDie = function(id) {
 // ====================== RAFFLE ======================
 let tickets = loadState('ra_tickets', []);
 let machines = loadState('ra_machines', []);
-let raffleSub = 'tickets';
+let raffleSub = 'play';
 
 function ticketInMachine(ticketId) { return machines.some(m => m.tickets.includes(ticketId)); }
 
 function renderRaffle() {
   tabs.raffle.innerHTML = `
     <div class="raffle-subnav">
+      <button class="${raffleSub==='play'?'active':''}" onclick="switchRaffleSub('play')">Play</button>
       <button class="${raffleSub==='tickets'?'active':''}" onclick="switchRaffleSub('tickets')">Tickets</button>
       <button class="${raffleSub==='machines'?'active':''}" onclick="switchRaffleSub('machines')">Machines</button>
-      <button class="${raffleSub==='play'?'active':''}" onclick="switchRaffleSub('play')">Play</button>
     </div>
+    <div class="raffle-sub ${raffleSub==='play'?'active':''}" id="sub-play"></div>
     <div class="raffle-sub ${raffleSub==='tickets'?'active':''}" id="sub-tickets"></div>
-    <div class="raffle-sub ${raffleSub==='machines'?'active':''}" id="sub-machines"></div>
-    <div class="raffle-sub ${raffleSub==='play'?'active':''}" id="sub-play"></div>`;
+    <div class="raffle-sub ${raffleSub==='machines'?'active':''}" id="sub-machines"></div>`;
   renderTickets(); renderMachines(); renderPlay();
 }
 window.switchRaffleSub = function(sub) { raffleSub = sub; renderRaffle(); };
