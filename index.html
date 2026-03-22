@@ -1,0 +1,795 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Random Access</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0a0a0f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Anybody:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+/* === RESET & VARIABLES === */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #0a0a0f; --surface: #141420; --surface2: #1c1c2e; --surface3: #25253a;
+  --text: #e8e6f0; --text2: #9896a8; --text3: #5c5a6e;
+  --accent1: #ff3c6f; --accent2: #00e5a0; --accent3: #7c5cfc; --accent4: #ffb938;
+  --danger: #ff4757; --radius: 14px; --radius-sm: 8px;
+  --font-display: 'Anybody', sans-serif; --font-mono: 'Space Mono', monospace;
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+html, body { height: 100%; overflow: hidden; }
+body {
+  font-family: var(--font-mono); background: var(--bg); color: var(--text);
+  -webkit-tap-highlight-color: transparent; position: relative;
+}
+button { font-family: var(--font-mono); cursor: pointer; border: none; outline: none; }
+input, select { font-family: var(--font-mono); outline: none; }
+
+/* === LAYOUT === */
+#app { height: 100dvh; display: flex; flex-direction: column; max-width: 480px; margin: 0 auto; position: relative; overflow: hidden; }
+.app-header {
+  padding: 16px 20px 10px; display: flex; align-items: center; justify-content: space-between;
+  background: linear-gradient(180deg, var(--bg) 0%, transparent 100%); z-index: 10; flex-shrink: 0;
+}
+.app-title { font-family: var(--font-display); font-weight: 800; font-size: 22px; letter-spacing: -0.5px; }
+.app-title span:nth-child(1) { color: var(--accent1); }
+.app-title span:nth-child(2) { color: var(--text); }
+.app-title span:nth-child(3) { color: var(--accent2); }
+
+.tab-content-wrapper { flex: 1; overflow: hidden; position: relative; }
+.tab-panel { position: absolute; inset: 0; overflow-y: auto; overflow-x: hidden; padding: 10px 18px 20px; transition: opacity 0.25s, transform 0.25s; opacity: 0; transform: translateY(12px); pointer-events: none; scrollbar-width: none; }
+.tab-panel::-webkit-scrollbar { display: none; }
+.tab-panel.active { opacity: 1; transform: translateY(0); pointer-events: auto; }
+
+/* === BOTTOM NAV === */
+.bottom-nav {
+  display: flex; justify-content: space-around; align-items: center; flex-shrink: 0;
+  background: var(--surface); border-top: 1px solid var(--surface3);
+  padding: 8px 0 calc(8px + var(--safe-bottom)); z-index: 20;
+}
+.nav-btn {
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  background: none; color: var(--text3); padding: 6px 16px; border-radius: 12px; transition: all 0.2s;
+  font-size: 10px; letter-spacing: 0.5px; text-transform: uppercase; min-width: 72px;
+}
+.nav-btn svg { width: 26px; height: 26px; transition: all 0.2s; }
+.nav-btn.active { color: var(--accent1); }
+.nav-btn.active svg { filter: drop-shadow(0 0 8px var(--accent1)); }
+.nav-btn:nth-child(2).active { color: var(--accent3); }
+.nav-btn:nth-child(2).active svg { filter: drop-shadow(0 0 8px var(--accent3)); }
+.nav-btn:nth-child(3).active { color: var(--accent2); }
+.nav-btn:nth-child(3).active svg { filter: drop-shadow(0 0 8px var(--accent2)); }
+
+/* === SHARED COMPONENTS === */
+.section-label { font-family: var(--font-display); font-weight: 600; font-size: 13px; color: var(--text2); text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 12px; }
+.btn-primary {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  background: var(--accent1); color: #fff; font-weight: 700; font-size: 14px;
+  padding: 14px 28px; border-radius: 50px; transition: all 0.2s; min-height: 48px;
+  text-transform: uppercase; letter-spacing: 1px;
+}
+.btn-primary:active { transform: scale(0.96); filter: brightness(0.85); }
+.btn-primary.green { background: var(--accent2); color: var(--bg); }
+.btn-primary.purple { background: var(--accent3); }
+.btn-secondary {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  background: var(--surface2); color: var(--text); font-size: 12px; font-weight: 700;
+  padding: 10px 18px; border-radius: 50px; border: 1px solid var(--surface3); transition: all 0.2s; min-height: 44px;
+}
+.btn-secondary:active { transform: scale(0.96); background: var(--surface3); }
+.btn-icon {
+  width: 40px; height: 40px; border-radius: 10px; background: var(--surface2); color: var(--text2);
+  display: inline-flex; align-items: center; justify-content: center; transition: all 0.15s; flex-shrink: 0;
+}
+.btn-icon:active { transform: scale(0.9); }
+.btn-icon svg { width: 18px; height: 18px; }
+
+/* Modal / Bottom Sheet */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.65); z-index: 100;
+  display: flex; align-items: flex-end; justify-content: center;
+  opacity: 0; pointer-events: none; transition: opacity 0.25s;
+}
+.modal-overlay.open { opacity: 1; pointer-events: auto; }
+.modal-sheet {
+  background: var(--surface); border-radius: 20px 20px 0 0; width: 100%; max-width: 480px;
+  max-height: 85vh; overflow-y: auto; padding: 24px 20px calc(24px + var(--safe-bottom));
+  transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.32,0.72,0,1);
+}
+.modal-overlay.open .modal-sheet { transform: translateY(0); }
+.modal-handle { width: 36px; height: 4px; background: var(--surface3); border-radius: 2px; margin: 0 auto 18px; }
+.modal-title { font-family: var(--font-display); font-weight: 800; font-size: 18px; margin-bottom: 20px; }
+.form-group { margin-bottom: 16px; }
+.form-label { display: block; font-size: 11px; color: var(--text2); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
+.form-input {
+  width: 100%; padding: 12px 14px; background: var(--surface2); border: 1px solid var(--surface3);
+  border-radius: var(--radius-sm); color: var(--text); font-size: 14px; transition: border-color 0.2s;
+}
+.form-input:focus { border-color: var(--accent3); }
+.form-input::placeholder { color: var(--text3); }
+.form-row { display: flex; gap: 10px; }
+.form-row > * { flex: 1; }
+.form-actions { display: flex; gap: 10px; margin-top: 20px; }
+.form-actions button { flex: 1; }
+
+/* Toast */
+.toast {
+  position: fixed; top: 20px; left: 50%; transform: translateX(-50%) translateY(-80px);
+  background: var(--surface2); color: var(--text); padding: 12px 20px; border-radius: 50px;
+  font-size: 13px; z-index: 200; border: 1px solid var(--surface3); transition: transform 0.35s cubic-bezier(0.32,0.72,0,1);
+  white-space: nowrap; pointer-events: none;
+}
+.toast.show { transform: translateX(-50%) translateY(0); }
+
+/* === COIN TOSS === */
+.coin-area { display: flex; flex-direction: column; align-items: center; padding-top: 10px; }
+.coin-stats { display: flex; gap: 24px; margin-bottom: 24px; }
+.coin-stat { text-align: center; }
+.coin-stat-val { font-family: var(--font-display); font-weight: 800; font-size: 28px; }
+.coin-stat-val.heads { color: var(--accent4); }
+.coin-stat-val.tails { color: var(--accent3); }
+.coin-stat-lbl { font-size: 10px; color: var(--text2); text-transform: uppercase; letter-spacing: 1.5px; }
+.coin-container { perspective: 600px; width: 180px; height: 180px; margin-bottom: 20px; }
+.coin-inner {
+  width: 100%; height: 100%; position: relative; transition: transform 0.1s;
+  transform-style: preserve-3d;
+}
+.coin-inner.flipping { animation: coinFlip 1.2s ease-out forwards; }
+@keyframes coinFlip {
+  0% { transform: rotateX(0deg) translateY(0); }
+  30% { transform: rotateX(900deg) translateY(-80px); }
+  70% { transform: rotateX(1620deg) translateY(-30px); }
+  100% { transform: rotateX(var(--final-rot)) translateY(0); }
+}
+.coin-face {
+  position: absolute; inset: 0; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  backface-visibility: hidden; font-family: var(--font-display); font-weight: 800; font-size: 56px;
+  border: 4px solid rgba(255,255,255,0.15); overflow: hidden;
+}
+.coin-face img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
+.coin-heads { background: linear-gradient(135deg, #ffb938 0%, #ff8c00 100%); color: #fff; text-shadow: 0 2px 4px rgba(0,0,0,0.3); }
+.coin-tails { background: linear-gradient(135deg, #7c5cfc 0%, #5a3ce0 100%); color: #fff; text-shadow: 0 2px 4px rgba(0,0,0,0.3); transform: rotateX(180deg); }
+.coin-result { font-family: var(--font-display); font-weight: 800; font-size: 26px; margin-bottom: 6px; min-height: 36px; text-transform: uppercase; letter-spacing: 2px; }
+.coin-result.heads-r { color: var(--accent4); }
+.coin-result.tails-r { color: var(--accent3); }
+.coin-actions { display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap; justify-content: center; }
+.coin-customize { margin-top: 16px; }
+
+/* === DICE === */
+.dice-toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.dice-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 12px; margin-bottom: 16px; }
+.die-card {
+  background: var(--surface); border-radius: var(--radius); padding: 12px 8px 10px; display: flex;
+  flex-direction: column; align-items: center; gap: 6px; position: relative; border: 1px solid var(--surface3);
+}
+.die-card.default { border-color: var(--accent1); border-style: dashed; }
+.die-face {
+  width: 64px; height: 64px; border-radius: 14px; display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-display); font-weight: 800; font-size: 26px; color: #fff; position: relative;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.4); box-shadow: inset 0 -3px 0 rgba(0,0,0,0.2), 0 4px 12px rgba(0,0,0,0.3);
+}
+.die-face.rolling { animation: dieShake 0.6s ease-out; }
+@keyframes dieShake {
+  0%, 100% { transform: rotate(0deg) scale(1); }
+  10% { transform: rotate(-12deg) scale(1.08); }
+  20% { transform: rotate(10deg) scale(0.95); }
+  30% { transform: rotate(-8deg) scale(1.05); }
+  40% { transform: rotate(6deg) scale(0.97); }
+  50% { transform: rotate(-4deg) scale(1.02); }
+  60% { transform: rotate(3deg) scale(0.99); }
+  70% { transform: rotate(-1deg) scale(1); }
+}
+.die-name { font-size: 10px; color: var(--text2); text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 90px; }
+.die-range { font-size: 9px; color: var(--text3); }
+.die-actions { position: absolute; top: 4px; right: 4px; display: flex; gap: 2px; }
+.die-actions button { width: 24px; height: 24px; border-radius: 6px; background: var(--surface2); color: var(--text3); display: flex; align-items: center; justify-content: center; font-size: 12px; border: none; cursor: pointer; }
+.die-actions button:hover { color: var(--text); }
+.dice-total-bar {
+  background: var(--surface); border: 1px solid var(--surface3); border-radius: var(--radius); padding: 14px;
+  text-align: center; margin-bottom: 14px; display: none;
+}
+.dice-total-bar .total-label { font-size: 10px; color: var(--text2); text-transform: uppercase; letter-spacing: 1.5px; }
+.dice-total-bar .total-val { font-family: var(--font-display); font-weight: 800; font-size: 32px; color: var(--accent3); }
+
+/* === RAFFLE === */
+.raffle-subnav { display: flex; gap: 4px; background: var(--surface); border-radius: 12px; padding: 4px; margin-bottom: 16px; }
+.raffle-subnav button {
+  flex: 1; padding: 10px 6px; border-radius: 10px; background: none; color: var(--text3);
+  font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; transition: all 0.2s;
+}
+.raffle-subnav button.active { background: var(--accent2); color: var(--bg); }
+.raffle-sub { display: none; }
+.raffle-sub.active { display: block; }
+
+.ticket-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; max-height: 50vh; overflow-y: auto; }
+.ticket-item {
+  display: flex; align-items: center; gap: 10px; background: var(--surface); border: 1px solid var(--surface3);
+  border-radius: var(--radius-sm); padding: 12px 14px; min-height: 48px;
+}
+.ticket-msg { flex: 1; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ticket-badge { font-size: 9px; background: var(--accent2); color: var(--bg); padding: 2px 7px; border-radius: 50px; font-weight: 700; flex-shrink: 0; }
+.ticket-actions { display: flex; gap: 4px; flex-shrink: 0; }
+
+.machine-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px; }
+.machine-card {
+  background: var(--surface); border: 1px solid var(--surface3); border-radius: var(--radius); padding: 16px;
+}
+.machine-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.machine-name { font-family: var(--font-display); font-weight: 700; font-size: 15px; }
+.machine-info { font-size: 11px; color: var(--text2); }
+.machine-actions { display: flex; gap: 6px; }
+
+.play-machines { display: flex; flex-direction: column; gap: 12px; }
+.play-card {
+  background: var(--surface); border: 1px solid var(--surface3); border-radius: var(--radius); padding: 18px;
+  display: flex; justify-content: space-between; align-items: center;
+}
+.play-card-info { flex: 1; }
+.play-card-name { font-family: var(--font-display); font-weight: 700; font-size: 15px; }
+.play-card-count { font-size: 11px; color: var(--text2); }
+
+/* Raffle reveal */
+.reveal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 150;
+  display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 20px;
+  opacity: 0; pointer-events: none; transition: opacity 0.3s;
+}
+.reveal-overlay.open { opacity: 1; pointer-events: auto; }
+.reveal-ticket {
+  background: linear-gradient(135deg, var(--accent2), #00b880); border-radius: 20px; padding: 32px 40px;
+  text-align: center; transform: scale(0.3) rotateZ(180deg); transition: transform 0.7s cubic-bezier(0.34, 1.56, 0.64, 1);
+  max-width: 300px;
+}
+.reveal-overlay.open .reveal-ticket { transform: scale(1) rotateZ(0deg); }
+.reveal-label { font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: rgba(0,0,0,0.5); margin-bottom: 8px; }
+.reveal-msg { font-family: var(--font-display); font-weight: 800; font-size: 28px; color: var(--bg); word-break: break-word; }
+.reveal-machine { font-size: 12px; color: rgba(0,0,0,0.4); margin-top: 8px; }
+.reveal-close { color: #fff; font-size: 14px; background: rgba(255,255,255,0.15); padding: 10px 30px; border-radius: 50px; }
+
+/* Ticket checklist in modal */
+.ticket-checklist { max-height: 40vh; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
+.ticket-check-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--surface2); border-radius: var(--radius-sm); cursor: pointer; }
+.ticket-check-item input { accent-color: var(--accent2); width: 18px; height: 18px; flex-shrink: 0; }
+.ticket-check-item span { font-size: 13px; }
+
+/* empty state */
+.empty-state { text-align: center; padding: 40px 20px; color: var(--text3); font-size: 13px; }
+
+/* Header actions */
+.header-actions { display: flex; gap: 6px; }
+.header-btn { width: 36px; height: 36px; border-radius: 10px; background: var(--surface); border: 1px solid var(--surface3); }
+.header-btn svg { width: 16px; height: 16px; }
+.header-btn:active { transform: scale(0.9); background: var(--surface2); }
+
+/* Hidden file input */
+#import-file-input { display: none; }
+
+</style>
+</head>
+<body>
+<div id="app">
+  <header class="app-header">
+    <div class="app-title"><span>Random</span><span>&nbsp;</span><span>Access</span></div>
+    <div class="header-actions">
+      <button class="btn-icon header-btn" id="btn-import" title="Import Data"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button>
+      <button class="btn-icon header-btn" id="btn-export" title="Export Data"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></button>
+    </div>
+  </header>
+
+  <div class="tab-content-wrapper">
+    <!-- COIN TAB -->
+    <div id="tab-coin" class="tab-panel active"><!-- filled by JS --></div>
+    <!-- DICE TAB -->
+    <div id="tab-dice" class="tab-panel"><!-- filled by JS --></div>
+    <!-- RAFFLE TAB -->
+    <div id="tab-raffle" class="tab-panel"><!-- filled by JS --></div>
+  </div>
+
+  <nav class="bottom-nav">
+    <button class="nav-btn active" data-tab="coin">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v0m0 10v0"/><path d="M8 12h8"/></svg>
+      Coin
+    </button>
+    <button class="nav-btn" data-tab="dice">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1" fill="currentColor"/><circle cx="15.5" cy="8.5" r="1" fill="currentColor"/><circle cx="8.5" cy="15.5" r="1" fill="currentColor"/><circle cx="15.5" cy="15.5" r="1" fill="currentColor"/><circle cx="12" cy="12" r="1" fill="currentColor"/></svg>
+      Dice
+    </button>
+    <button class="nav-btn" data-tab="raffle">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="14" rx="2"/><path d="M12 6v14"/><path d="M2 12h20"/><path d="M6 2l6 4 6-4"/></svg>
+      Raffle
+    </button>
+  </nav>
+</div>
+
+<div id="toast" class="toast"></div>
+<div id="modal-overlay" class="modal-overlay"><div id="modal-sheet" class="modal-sheet"></div></div>
+<input type="file" id="import-file-input" accept=".json">
+
+<script>
+/* === GLOBAL STATE & UTILS === */
+const $ = s => document.querySelector(s);
+const $$ = s => document.querySelectorAll(s);
+
+function loadState(key, fallback) { try { return JSON.parse(localStorage.getItem(key)) || fallback; } catch { return fallback; } }
+function saveState(key, val) { localStorage.setItem(key, JSON.stringify(val)); }
+function showToast(msg) {
+  const t = $('#toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(t._tm); t._tm = setTimeout(() => t.classList.remove('show'), 2200);
+}
+function openModal(html) { $('#modal-sheet').innerHTML = html; $('#modal-overlay').classList.add('open'); }
+function closeModal() { $('#modal-overlay').classList.remove('open'); }
+$('#modal-overlay').addEventListener('click', e => { if (e.target === e.currentTarget) closeModal(); });
+function randInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+
+// --- Tab Navigation ---
+const tabs = { coin: $('#tab-coin'), dice: $('#tab-dice'), raffle: $('#tab-raffle') };
+let activeTab = 'coin';
+$$('.nav-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    if (btn.dataset.tab === activeTab) return;
+    $$('.nav-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    tabs[activeTab].classList.remove('active');
+    activeTab = btn.dataset.tab;
+    tabs[activeTab].classList.add('active');
+  });
+});
+
+// ====================== COIN TOSS ======================
+let coinHeads = 0, coinTails = 0, coinFlipping = false;
+let coinImages = loadState('ra_coinImages', { heads: null, tails: null });
+
+function renderCoin() {
+  const headsFace = coinImages.heads ? `<img src="${coinImages.heads}" alt="H">` : 'H';
+  const tailsFace = coinImages.tails ? `<img src="${coinImages.tails}" alt="T">` : 'T';
+  tabs.coin.innerHTML = `
+    <div class="coin-area">
+      <div class="coin-stats">
+        <div class="coin-stat"><div class="coin-stat-val heads" id="heads-count">${coinHeads}</div><div class="coin-stat-lbl">Heads</div></div>
+        <div class="coin-stat"><div class="coin-stat-val tails" id="tails-count">${coinTails}</div><div class="coin-stat-lbl">Tails</div></div>
+      </div>
+      <div class="coin-container"><div class="coin-inner" id="coin-inner">
+        <div class="coin-face coin-heads">${headsFace}</div>
+        <div class="coin-face coin-tails">${tailsFace}</div>
+      </div></div>
+      <div class="coin-result" id="coin-result"></div>
+      <div class="coin-actions">
+        <button class="btn-primary" id="btn-toss" style="min-width:160px">Toss</button>
+      </div>
+      <div class="coin-actions coin-customize">
+        <button class="btn-secondary" id="btn-coin-custom">Customize Coin</button>
+        <button class="btn-secondary" id="btn-coin-reset">Reset Stats</button>
+      </div>
+    </div>`;
+  $('#btn-toss').onclick = tossCoin;
+  $('#btn-coin-custom').onclick = openCoinCustomize;
+  $('#btn-coin-reset').onclick = () => { coinHeads = 0; coinTails = 0; renderCoin(); };
+}
+
+function tossCoin() {
+  if (coinFlipping) return;
+  coinFlipping = true;
+  const result = Math.random() < 0.5 ? 'heads' : 'tails';
+  const inner = $('#coin-inner');
+  const finalRot = result === 'heads' ? '1800deg' : '1980deg';
+  inner.style.setProperty('--final-rot', finalRot);
+  inner.classList.remove('flipping');
+  void inner.offsetWidth;
+  inner.classList.add('flipping');
+  const resEl = $('#coin-result');
+  resEl.textContent = ''; resEl.className = 'coin-result';
+  setTimeout(() => {
+    if (result === 'heads') coinHeads++; else coinTails++;
+    $('#heads-count').textContent = coinHeads;
+    $('#tails-count').textContent = coinTails;
+    resEl.textContent = result; resEl.className = 'coin-result ' + result + '-r';
+    coinFlipping = false;
+  }, 1200);
+}
+
+function openCoinCustomize() {
+  openModal(`<div class="modal-handle"></div>
+    <div class="modal-title">Customize Coin</div>
+    <div class="form-group"><label class="form-label">Heads Image</label>
+    <input type="file" accept="image/*" id="img-heads" class="form-input" style="padding:8px"></div>
+    <div class="form-group"><label class="form-label">Tails Image</label>
+    <input type="file" accept="image/*" id="img-tails" class="form-input" style="padding:8px"></div>
+    <div class="form-actions">
+      <button class="btn-secondary" onclick="clearCoinImages()">Clear Images</button>
+      <button class="btn-primary" onclick="saveCoinImages()">Save</button>
+    </div>`);
+}
+window.saveCoinImages = function() {
+  const process = (file) => new Promise(res => {
+    if (!file) return res(null);
+    const r = new FileReader(); r.onload = e => res(e.target.result); r.readAsDataURL(file);
+  });
+  const fh = $('#img-heads').files[0], ft = $('#img-tails').files[0];
+  Promise.all([process(fh), process(ft)]).then(([h, t]) => {
+    if (h) coinImages.heads = h;
+    if (t) coinImages.tails = t;
+    saveState('ra_coinImages', coinImages);
+    closeModal(); renderCoin(); showToast('Coin updated');
+  });
+};
+window.clearCoinImages = function() {
+  coinImages = { heads: null, tails: null };
+  saveState('ra_coinImages', coinImages);
+  closeModal(); renderCoin(); showToast('Coin reset to default');
+};
+
+// ====================== DICE ======================
+const DEFAULT_DIE = { id: 'default', name: 'Standard', faces: 6, color: '#ff3c6f', isDefault: true };
+let diceList = loadState('ra_dice', [{ ...DEFAULT_DIE }]);
+if (!diceList.find(d => d.id === 'default')) diceList.unshift({ ...DEFAULT_DIE });
+let diceResults = {};
+
+function renderDice() {
+  const total = Object.values(diceResults);
+  const showTotal = total.length > 1 && total.every(v => typeof v === 'number');
+  tabs.dice.innerHTML = `
+    <div class="dice-toolbar">
+      <div class="section-label" style="margin:0">Dice (${diceList.length}/12)</div>
+      <div style="display:flex;gap:8px">
+        ${diceList.length < 12 ? '<button class="btn-secondary" id="btn-add-die">+ Add</button>' : ''}
+        <button class="btn-primary purple" id="btn-roll-all" style="padding:12px 20px;font-size:12px">Roll All</button>
+      </div>
+    </div>
+    <div class="dice-total-bar" id="dice-total" style="${showTotal ? 'display:block' : ''}">
+      <div class="total-label">Total</div>
+      <div class="total-val">${showTotal ? total.reduce((a,b)=>a+b,0) : ''}</div>
+    </div>
+    <div class="dice-grid" id="dice-grid">
+      ${diceList.map(d => {
+        const val = diceResults[d.id];
+        return `<div class="die-card ${d.isDefault ? 'default' : ''}">
+          ${!d.isDefault ? `<div class="die-actions">
+            <button onclick="editDie('${d.id}')" title="Edit">&#9998;</button>
+            <button onclick="deleteDie('${d.id}')" title="Delete">&times;</button>
+          </div>` : ''}
+          <div class="die-face" id="face-${d.id}" style="background:${d.color}">${val != null ? val : '?'}</div>
+          <div class="die-name">${d.name}</div>
+          <div class="die-range">d${d.faces}</div>
+        </div>`;
+      }).join('')}
+    </div>`;
+  if ($('#btn-add-die')) $('#btn-add-die').onclick = () => openDieModal();
+  $('#btn-roll-all').onclick = rollAllDice;
+}
+
+function rollAllDice() {
+  diceList.forEach((d, i) => {
+    const el = $(`#face-${d.id}`);
+    if (!el) return;
+    el.classList.remove('rolling'); void el.offsetWidth; el.classList.add('rolling');
+    const cycles = 8;
+    let c = 0;
+    const iv = setInterval(() => {
+      el.textContent = randInt(1, d.faces);
+      c++;
+      if (c >= cycles) {
+        clearInterval(iv);
+        const result = randInt(1, d.faces);
+        diceResults[d.id] = result;
+        el.textContent = result;
+        // update total after last die finishes
+        if (i === diceList.length - 1) {
+          const tb = $('#dice-total');
+          const vals = diceList.map(dd => diceResults[dd.id]).filter(v => v != null);
+          if (vals.length > 1) {
+            tb.style.display = 'block';
+            tb.querySelector('.total-val').textContent = vals.reduce((a,b)=>a+b,0);
+          }
+        }
+      }
+    }, 70);
+  });
+}
+
+function openDieModal(existingId) {
+  const d = existingId ? diceList.find(x => x.id === existingId) : null;
+  openModal(`<div class="modal-handle"></div>
+    <div class="modal-title">${d ? 'Edit' : 'Add'} Die</div>
+    <div class="form-group"><label class="form-label">Name</label>
+    <input class="form-input" id="die-name" maxlength="20" value="${d ? d.name : ''}" placeholder="My Die"></div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Faces (2-200)</label>
+      <input class="form-input" id="die-faces" type="number" min="2" max="200" value="${d ? d.faces : 6}"></div>
+      <div class="form-group"><label class="form-label">Color</label>
+      <input type="color" id="die-color" value="${d ? d.color : '#7c5cfc'}" class="form-input" style="padding:4px;height:46px"></div>
+    </div>
+    <div class="form-actions">
+      <button class="btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn-primary purple" onclick="saveDie('${existingId || ''}')">${d ? 'Save' : 'Add'}</button>
+    </div>`);
+}
+window.editDie = id => openDieModal(id);
+window.saveDie = function(existingId) {
+  const name = $('#die-name').value.trim() || 'Die';
+  let faces = parseInt($('#die-faces').value);
+  if (isNaN(faces) || faces < 2) faces = 2;
+  if (faces > 200) faces = 200;
+  const color = $('#die-color').value;
+  if (existingId) {
+    const d = diceList.find(x => x.id === existingId);
+    if (d) { d.name = name; d.faces = faces; d.color = color; }
+  } else {
+    diceList.push({ id: uid(), name, faces, color, isDefault: false });
+  }
+  saveState('ra_dice', diceList); closeModal(); renderDice(); showToast(existingId ? 'Die updated' : 'Die added');
+};
+window.deleteDie = function(id) {
+  diceList = diceList.filter(d => d.id !== id);
+  delete diceResults[id];
+  saveState('ra_dice', diceList); renderDice(); showToast('Die removed');
+};
+
+// ====================== RAFFLE ======================
+let tickets = loadState('ra_tickets', []);
+let machines = loadState('ra_machines', []);
+let raffleSub = 'tickets';
+
+function ticketInMachine(ticketId) { return machines.some(m => m.tickets.includes(ticketId)); }
+
+function renderRaffle() {
+  tabs.raffle.innerHTML = `
+    <div class="raffle-subnav">
+      <button class="${raffleSub==='tickets'?'active':''}" onclick="switchRaffleSub('tickets')">Tickets</button>
+      <button class="${raffleSub==='machines'?'active':''}" onclick="switchRaffleSub('machines')">Machines</button>
+      <button class="${raffleSub==='play'?'active':''}" onclick="switchRaffleSub('play')">Play</button>
+    </div>
+    <div class="raffle-sub ${raffleSub==='tickets'?'active':''}" id="sub-tickets"></div>
+    <div class="raffle-sub ${raffleSub==='machines'?'active':''}" id="sub-machines"></div>
+    <div class="raffle-sub ${raffleSub==='play'?'active':''}" id="sub-play"></div>`;
+  renderTickets(); renderMachines(); renderPlay();
+}
+window.switchRaffleSub = function(sub) { raffleSub = sub; renderRaffle(); };
+
+function renderTickets() {
+  const el = $('#sub-tickets');
+  el.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <div class="section-label" style="margin:0">Tickets (${tickets.length}/200)</div>
+      ${tickets.length < 200 ? '<button class="btn-secondary" onclick="openTicketModal()">+ New</button>' : ''}
+    </div>
+    ${tickets.length === 0 ? '<div class="empty-state">No tickets yet. Create some to get started.</div>' :
+    `<div class="ticket-list">${tickets.map(t => {
+      const inUse = ticketInMachine(t.id);
+      return `<div class="ticket-item">
+        <div class="ticket-msg">${escHtml(t.msg)}</div>
+        ${inUse ? '<div class="ticket-badge">In Use</div>' : ''}
+        <div class="ticket-actions">
+          <button class="btn-icon" onclick="openTicketModal('${t.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
+          ${!inUse ? `<button class="btn-icon" onclick="deleteTicket('${t.id}')" style="color:var(--danger)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg></button>` :
+          `<button class="btn-icon" onclick="showToast('Cannot delete: ticket is in a machine')" style="opacity:0.35"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg></button>`}
+        </div>
+      </div>`;
+    }).join('')}</div>`}`;
+}
+
+function escHtml(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+window.openTicketModal = function(existingId) {
+  const t = existingId ? tickets.find(x => x.id === existingId) : null;
+  openModal(`<div class="modal-handle"></div>
+    <div class="modal-title">${t ? 'Edit' : 'New'} Ticket</div>
+    <div class="form-group"><label class="form-label">Message (max 50 chars)</label>
+    <input class="form-input" id="ticket-msg" maxlength="50" value="${t ? escHtml(t.msg) : ''}" placeholder="Enter ticket message"></div>
+    <div class="form-actions">
+      <button class="btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn-primary green" onclick="saveTicket('${existingId || ''}')">${t ? 'Save' : 'Create'}</button>
+    </div>`);
+  setTimeout(() => $('#ticket-msg')?.focus(), 300);
+};
+window.saveTicket = function(existingId) {
+  const msg = $('#ticket-msg').value.trim();
+  if (!msg) { showToast('Message cannot be empty'); return; }
+  if (existingId) {
+    const t = tickets.find(x => x.id === existingId);
+    if (t) t.msg = msg;
+  } else {
+    tickets.push({ id: uid(), msg });
+  }
+  saveState('ra_tickets', tickets); closeModal(); renderRaffle(); showToast(existingId ? 'Ticket updated' : 'Ticket created');
+};
+window.deleteTicket = function(id) {
+  if (ticketInMachine(id)) { showToast('Cannot delete: ticket is in a machine'); return; }
+  tickets = tickets.filter(t => t.id !== id);
+  saveState('ra_tickets', tickets); renderRaffle(); showToast('Ticket deleted');
+};
+
+// --- Machines ---
+function renderMachines() {
+  const el = $('#sub-machines');
+  el.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <div class="section-label" style="margin:0">Machines (${machines.length}/12)</div>
+      ${machines.length < 12 ? '<button class="btn-secondary" onclick="openMachineModal()">+ New</button>' : ''}
+    </div>
+    ${machines.length === 0 ? '<div class="empty-state">No machines yet. Create one and assign tickets.</div>' :
+    `<div class="machine-list">${machines.map(m => {
+      const tCount = m.tickets.length;
+      return `<div class="machine-card">
+        <div class="machine-header">
+          <div class="machine-name">${escHtml(m.name)}</div>
+          <div class="machine-actions">
+            <button class="btn-icon" onclick="openMachineModal('${m.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
+            <button class="btn-icon" onclick="deleteMachine('${m.id}')" style="color:var(--danger)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg></button>
+          </div>
+        </div>
+        <div class="machine-info">${tCount} ticket${tCount!==1?'s':''} assigned ${tCount < 2 ? '— <span style="color:var(--accent1)">needs at least 2</span>' : '— <span style="color:var(--accent2)">ready</span>'}</div>
+      </div>`;
+    }).join('')}</div>`}`;
+}
+
+window.openMachineModal = function(existingId) {
+  const m = existingId ? machines.find(x => x.id === existingId) : null;
+  const selected = m ? m.tickets : [];
+  openModal(`<div class="modal-handle"></div>
+    <div class="modal-title">${m ? 'Edit' : 'New'} Machine</div>
+    <div class="form-group"><label class="form-label">Machine Name</label>
+    <input class="form-input" id="machine-name" maxlength="30" value="${m ? escHtml(m.name) : ''}" placeholder="Lucky Spinner"></div>
+    <div class="form-group"><label class="form-label">Assign Tickets (min 2)</label>
+    ${tickets.length === 0 ? '<div class="empty-state" style="padding:16px">Create tickets first</div>' :
+    `<div class="ticket-checklist">${tickets.map(t =>
+      `<label class="ticket-check-item"><input type="checkbox" value="${t.id}" ${selected.includes(t.id)?'checked':''}><span>${escHtml(t.msg)}</span></label>`
+    ).join('')}</div>`}
+    </div>
+    <div class="form-actions">
+      <button class="btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn-primary green" onclick="saveMachine('${existingId || ''}')">${m ? 'Save' : 'Create'}</button>
+    </div>`);
+};
+window.saveMachine = function(existingId) {
+  const name = $('#machine-name').value.trim();
+  if (!name) { showToast('Name cannot be empty'); return; }
+  const checked = [...$$('.ticket-checklist input:checked')].map(i => i.value);
+  if (checked.length < 2) { showToast('Select at least 2 tickets'); return; }
+  if (existingId) {
+    const m = machines.find(x => x.id === existingId);
+    if (m) { m.name = name; m.tickets = checked; }
+  } else {
+    machines.push({ id: uid(), name, tickets: checked });
+  }
+  saveState('ra_machines', machines); closeModal(); renderRaffle(); showToast(existingId ? 'Machine updated' : 'Machine created');
+};
+window.deleteMachine = function(id) {
+  machines = machines.filter(m => m.id !== id);
+  saveState('ra_machines', machines); renderRaffle(); showToast('Machine deleted');
+};
+
+// --- Play ---
+function renderPlay() {
+  const el = $('#sub-play');
+  const ready = machines.filter(m => m.tickets.length >= 2);
+  el.innerHTML = `
+    <div class="section-label">Ready Machines</div>
+    ${ready.length === 0 ? '<div class="empty-state">No machines ready. Create a machine with at least 2 tickets.</div>' :
+    `<div class="play-machines">${ready.map(m =>
+      `<div class="play-card">
+        <div class="play-card-info">
+          <div class="play-card-name">${escHtml(m.name)}</div>
+          <div class="play-card-count">${m.tickets.length} tickets</div>
+        </div>
+        <button class="btn-primary green" style="padding:10px 22px;font-size:12px" onclick="drawRaffle('${m.id}')">Draw!</button>
+      </div>`
+    ).join('')}</div>`}`;
+}
+
+window.drawRaffle = function(machineId) {
+  const m = machines.find(x => x.id === machineId);
+  if (!m || m.tickets.length < 2) return;
+  const winId = m.tickets[randInt(0, m.tickets.length - 1)];
+  const winTicket = tickets.find(t => t.id === winId);
+  if (!winTicket) return;
+  // show reveal
+  let rev = document.getElementById('reveal-overlay');
+  if (!rev) {
+    rev = document.createElement('div');
+    rev.id = 'reveal-overlay';
+    rev.className = 'reveal-overlay';
+    document.body.appendChild(rev);
+  }
+  rev.innerHTML = `
+    <div class="reveal-ticket">
+      <div class="reveal-label">Winner</div>
+      <div class="reveal-msg">${escHtml(winTicket.msg)}</div>
+      <div class="reveal-machine">from ${escHtml(m.name)}</div>
+    </div>
+    <button class="reveal-close" onclick="closeReveal()">Close</button>`;
+  requestAnimationFrame(() => rev.classList.add('open'));
+};
+window.closeReveal = function() {
+  const rev = document.getElementById('reveal-overlay');
+  if (rev) { rev.classList.remove('open'); }
+};
+
+// ====================== INIT ======================
+renderCoin(); renderDice(); renderRaffle();
+
+// ====================== IMPORT / EXPORT ======================
+$('#btn-export').onclick = function() {
+  const data = {
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    dice: loadState('ra_dice', []),
+    tickets: loadState('ra_tickets', []),
+    machines: loadState('ra_machines', [])
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'random-access-backup.json';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast('Data exported');
+};
+
+$('#btn-import').onclick = function() {
+  openModal(`<div class="modal-handle"></div>
+    <div class="modal-title">Import Data</div>
+    <p style="font-size:13px;color:var(--text2);margin-bottom:16px">Load a previously exported JSON file. This will <strong style="color:var(--accent1)">replace</strong> your current dice, tickets, and machines.</p>
+    <div class="form-group">
+      <input type="file" accept=".json" id="import-file-modal" class="form-input" style="padding:8px">
+    </div>
+    <div class="form-actions">
+      <button class="btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn-primary" onclick="doImport()">Import</button>
+    </div>`);
+};
+
+window.doImport = function() {
+  const fileInput = $('#import-file-modal');
+  const file = fileInput && fileInput.files[0];
+  if (!file) { showToast('Select a file first'); return; }
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (!data.dice && !data.tickets && !data.machines) {
+        showToast('Invalid file format'); return;
+      }
+      if (Array.isArray(data.dice)) {
+        // Ensure default die is present
+        if (!data.dice.find(d => d.id === 'default')) {
+          data.dice.unshift({ id: 'default', name: 'Standard', faces: 6, color: '#ff3c6f', isDefault: true });
+        }
+        diceList = data.dice;
+        saveState('ra_dice', diceList);
+      }
+      if (Array.isArray(data.tickets)) {
+        tickets = data.tickets;
+        saveState('ra_tickets', tickets);
+      }
+      if (Array.isArray(data.machines)) {
+        machines = data.machines;
+        saveState('ra_machines', machines);
+      }
+      diceResults = {};
+      closeModal();
+      renderDice(); renderRaffle();
+      showToast('Data imported successfully');
+    } catch (err) {
+      showToast('Error reading file');
+    }
+  };
+  reader.readAsText(file);
+};
+
+// ====================== SERVICE WORKER (PWA) ======================
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}
+</script>
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v8c78df7c7c0f484497ecbca7046644da1771523124516" integrity="sha512-8DS7rgIrAmghBFwoOTujcf6D9rXvH8xm8JQ1Ja01h9QX8EzXldiszufYa4IFfKdLUKTTrnSFXLDkUEOTrZQ8Qg==" data-cf-beacon='{"version":"2024.11.0","token":"75124c326cb447fe934cde04713ae013","r":1,"server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
+</body>
+</html>
