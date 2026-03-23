@@ -17,8 +17,8 @@
 :root {
   --bg: #151922; --surface: #1c2130; --surface2: #232a3b; --surface3: #2e3650;
   --text: #f0f2f8; --text2: #a8b0c4; --text3: #6b7590;
-  --accent1: #ff3c6f; --accent2: #00e5a0; --accent3: #7c5cfc; --accent4: #ffb938;
-  --danger: #ff4757; --radius: 14px; --radius-sm: 8px;
+  --accent1: #e06b8a; --accent2: #5ec2a4; --accent3: #9b8ad4; --accent4: #d4a95a;
+  --danger: #d4626e; --radius: 14px; --radius-sm: 8px;
   --font-display: 'Anybody', sans-serif; --font-mono: 'Space Mono', monospace;
   --safe-bottom: env(safe-area-inset-bottom, 0px);
 }
@@ -59,11 +59,11 @@ input, select { font-family: var(--font-mono); outline: none; }
 }
 .nav-btn svg { width: 26px; height: 26px; transition: all 0.2s; }
 .nav-btn.active { color: var(--accent1); }
-.nav-btn.active svg { filter: drop-shadow(0 0 8px var(--accent1)); }
+.nav-btn.active svg { filter: drop-shadow(0 0 5px var(--accent1)); }
 .nav-btn:nth-child(2).active { color: var(--accent3); }
-.nav-btn:nth-child(2).active svg { filter: drop-shadow(0 0 8px var(--accent3)); }
+.nav-btn:nth-child(2).active svg { filter: drop-shadow(0 0 5px var(--accent3)); }
 .nav-btn:nth-child(3).active { color: var(--accent2); }
-.nav-btn:nth-child(3).active svg { filter: drop-shadow(0 0 8px var(--accent2)); }
+.nav-btn:nth-child(3).active svg { filter: drop-shadow(0 0 5px var(--accent2)); }
 
 /* === SHARED COMPONENTS === */
 .section-label { font-family: var(--font-display); font-weight: 600; font-size: 13px; color: var(--text2); text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 12px; }
@@ -152,8 +152,8 @@ input, select { font-family: var(--font-mono); outline: none; }
   border: 4px solid rgba(255,255,255,0.15); overflow: hidden;
 }
 .coin-face img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
-.coin-heads { background: linear-gradient(135deg, #ffb938 0%, #ff8c00 100%); color: #fff; text-shadow: 0 2px 4px rgba(0,0,0,0.3); }
-.coin-tails { background: linear-gradient(135deg, #7c5cfc 0%, #5a3ce0 100%); color: #fff; text-shadow: 0 2px 4px rgba(0,0,0,0.3); transform: rotateX(180deg); }
+.coin-heads { background: linear-gradient(135deg, #d4a95a 0%, #c08a3a 100%); color: #fff; text-shadow: 0 2px 4px rgba(0,0,0,0.3); }
+.coin-tails { background: linear-gradient(135deg, #9b8ad4 0%, #7a68b8 100%); color: #fff; text-shadow: 0 2px 4px rgba(0,0,0,0.3); transform: rotateX(180deg); }
 .coin-result { font-family: var(--font-display); font-weight: 800; font-size: 26px; margin-bottom: 6px; min-height: 36px; text-transform: uppercase; letter-spacing: 2px; }
 .coin-result.heads-r { color: var(--accent4); }
 .coin-result.tails-r { color: var(--accent3); }
@@ -241,7 +241,7 @@ input, select { font-family: var(--font-mono); outline: none; }
 }
 .reveal-overlay.open { opacity: 1; pointer-events: auto; }
 .reveal-ticket {
-  background: linear-gradient(135deg, var(--accent2), #00b880); border-radius: 20px; padding: 32px 40px;
+  background: linear-gradient(135deg, var(--accent2), #4a9e86); border-radius: 20px; padding: 32px 40px;
   text-align: center; transform: scale(0.3) rotateZ(180deg); transition: transform 0.7s cubic-bezier(0.34, 1.56, 0.64, 1);
   max-width: 300px;
 }
@@ -425,7 +425,7 @@ window.clearCoinImages = function() {
 };
 
 // ====================== DICE ======================
-const DEFAULT_DIE = { id: 'default', name: 'Standard', faces: 6, color: '#ff3c6f', isDefault: true };
+const DEFAULT_DIE = { id: 'default', name: 'Standard', faces: 6, color: '#e06b8a', isDefault: true };
 let diceList = loadState('ra_dice', [{ ...DEFAULT_DIE }]);
 if (!diceList.find(d => d.id === 'default')) diceList.unshift({ ...DEFAULT_DIE });
 let diceResults = {};
@@ -502,7 +502,7 @@ function openDieModal(existingId) {
       <div class="form-group"><label class="form-label">Faces (2-200)</label>
       <input class="form-input" id="die-faces" type="number" min="2" max="200" value="${d ? d.faces : 6}"></div>
       <div class="form-group"><label class="form-label">Color</label>
-      <input type="color" id="die-color" value="${d ? d.color : '#7c5cfc'}" class="form-input" style="padding:4px;height:46px"></div>
+      <input type="color" id="die-color" value="${d ? d.color : '#9b8ad4'}" class="form-input" style="padding:4px;height:46px"></div>
     </div>
     <div class="form-actions">
       <button class="btn-secondary" onclick="closeModal()">Cancel</button>
@@ -761,7 +761,7 @@ window.doImport = function() {
       if (Array.isArray(data.dice)) {
         // Ensure default die is present
         if (!data.dice.find(d => d.id === 'default')) {
-          data.dice.unshift({ id: 'default', name: 'Standard', faces: 6, color: '#ff3c6f', isDefault: true });
+          data.dice.unshift({ id: 'default', name: 'Standard', faces: 6, color: '#e06b8a', isDefault: true });
         }
         diceList = data.dice;
         saveState('ra_dice', diceList);
