@@ -167,7 +167,7 @@ input, select { font-family: var(--font-mono); outline: none; }
   background: var(--surface); border-radius: var(--radius); padding: 12px 8px 10px; display: flex;
   flex-direction: column; align-items: center; gap: 6px; position: relative; border: 1px solid var(--surface3);
 }
-.die-card.default { border-color: var(--accent1); border-style: dashed; }
+.die-card.default { border-color: var(--accent3); border-style: dashed; }
 .die-face {
   width: 64px; height: 64px; border-radius: 14px; display: flex; align-items: center; justify-content: center;
   font-family: var(--font-display); font-weight: 800; font-size: 26px; color: #fff; position: relative;
@@ -186,9 +186,10 @@ input, select { font-family: var(--font-mono); outline: none; }
 }
 .die-name { font-size: 10px; color: var(--text2); text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 90px; }
 .die-range { font-size: 9px; color: var(--text3); }
-.die-actions { position: absolute; top: 4px; right: 4px; display: flex; gap: 2px; }
-.die-actions button { width: 24px; height: 24px; border-radius: 6px; background: var(--surface2); color: var(--text3); display: flex; align-items: center; justify-content: center; font-size: 12px; border: none; cursor: pointer; }
-.die-actions button:hover { color: var(--text); }
+.die-actions { display: flex; gap: 4px; margin-top: 4px; }
+.die-actions button { width: 30px; height: 26px; border-radius: 6px; background: var(--surface3); color: var(--text2); display: flex; align-items: center; justify-content: center; font-size: 13px; border: none; cursor: pointer; transition: all 0.15s; }
+.die-actions button:hover { color: var(--text); background: var(--surface2); }
+.die-actions button:last-child:hover { color: var(--danger); }
 .dice-total-bar {
   background: var(--surface); border: 1px solid var(--surface3); border-radius: var(--radius); padding: 14px;
   text-align: center; margin-bottom: 14px; display: none;
@@ -425,7 +426,7 @@ window.clearCoinImages = function() {
 };
 
 // ====================== DICE ======================
-const DEFAULT_DIE = { id: 'default', name: 'Standard', faces: 6, color: '#e06b8a', isDefault: true };
+const DEFAULT_DIE = { id: 'default', name: 'Standard', faces: 6, color: '#9b8ad4', isDefault: true };
 let diceList = loadState('ra_dice', [{ ...DEFAULT_DIE }]);
 if (!diceList.find(d => d.id === 'default')) diceList.unshift({ ...DEFAULT_DIE });
 let diceResults = {};
@@ -449,13 +450,13 @@ function renderDice() {
       ${diceList.map(d => {
         const val = diceResults[d.id];
         return `<div class="die-card ${d.isDefault ? 'default' : ''}">
+          <div class="die-face" id="face-${d.id}" style="background:${d.color}">${val != null ? val : '?'}</div>
+          <div class="die-name">${d.name}</div>
+          <div class="die-range">d${d.faces}</div>
           ${!d.isDefault ? `<div class="die-actions">
             <button onclick="editDie('${d.id}')" title="Edit">&#9998;</button>
             <button onclick="deleteDie('${d.id}')" title="Delete">&times;</button>
           </div>` : ''}
-          <div class="die-face" id="face-${d.id}" style="background:${d.color}">${val != null ? val : '?'}</div>
-          <div class="die-name">${d.name}</div>
-          <div class="die-range">d${d.faces}</div>
         </div>`;
       }).join('')}
     </div>`;
@@ -761,7 +762,7 @@ window.doImport = function() {
       if (Array.isArray(data.dice)) {
         // Ensure default die is present
         if (!data.dice.find(d => d.id === 'default')) {
-          data.dice.unshift({ id: 'default', name: 'Standard', faces: 6, color: '#e06b8a', isDefault: true });
+          data.dice.unshift({ id: 'default', name: 'Standard', faces: 6, color: '#9b8ad4', isDefault: true });
         }
         diceList = data.dice;
         saveState('ra_dice', diceList);
